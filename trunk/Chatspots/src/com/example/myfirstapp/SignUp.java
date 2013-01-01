@@ -5,6 +5,8 @@ import io.socket.IOCallback;
 import io.socket.SocketIO;
 import io.socket.SocketIOException;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.security.MessageDigest;
@@ -16,6 +18,11 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import org.apache.commons.net.ftp.FTPClient;
+
+import com.jcraft.jsch.Channel;
+import com.jcraft.jsch.ChannelSftp;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.Session;
 
 import android.R.layout;
 import android.app.Activity;
@@ -29,6 +36,7 @@ import android.util.Patterns;
 public class SignUp extends Activity {
 	String response = "";
 	Intent intent;
+	String str_username = "";
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -40,7 +48,7 @@ public class SignUp extends Activity {
     	intent = new Intent(this, SignUpStatus.class);
 		
     	EditText username = (EditText) findViewById(R.id.username);
-        final String str_username = username.getText().toString();
+        str_username = username.getText().toString();
         
         EditText password = (EditText) findViewById(R.id.password);
         String str_password = password.getText().toString();
@@ -95,19 +103,7 @@ public class SignUp extends Activity {
 					response = ((JSONObject)args[0]).get("RequestStatus").toString();
 					if(response.equals("200"))
 					{
-						
-						FTPClient client = new FTPClient();
-					    
-					    try {
-					        client.connect("chatspots.sytes.net");
-					        client.login("chatspots", "P!CtuR3$");
-					        client.makeDirectory(str_username);
-					        
-					        client.logout();
-					    } catch (IOException e) {
-					        e.printStackTrace();
-					    }
-						
+						create_directory();
 						runOnUiThread(new Runnable() {
 						     public void run() {
 
@@ -206,6 +202,33 @@ public class SignUp extends Activity {
         
         }
     }
+    
+    
+    public void create_directory()
+	{
+		Session session ;
+	     Channel channel = null;
+	    ChannelSftp sftp;
+	    JSch ssh = new JSch();
+	   try {
+	        session =ssh.getSession("chatspots", "chatspots.sytes.net");
+	        System.out.println("JSch JSch JSch Session created.");
+	        session.setPassword("P!CtuR3$");
+	        java.util.Properties config = new java.util.Properties(); 
+	        config.put("StrictHostKeyChecking", "no");
+	        session.setConfig(config);
+	        session.connect();
+	        System.out.println("JSch JSch Session connected.");
+	        System.out.println("Opening Channel.");
+	        channel = session.openChannel("sftp"); 
+	        channel.connect();
+	        sftp= (ChannelSftp)channel;
+	        sftp.mkdir(str_username);
+	    }
+	    catch(Exception e){
+
+	    }
+	}
     
     public String md5(String s) {
         try {
