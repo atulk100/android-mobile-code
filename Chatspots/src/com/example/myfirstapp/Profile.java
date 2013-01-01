@@ -5,11 +5,21 @@ import io.socket.IOCallback;
 import io.socket.SocketIO;
 import io.socket.SocketIOException;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.net.MalformedURLException;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import com.jcraft.jsch.Channel;
+import com.jcraft.jsch.ChannelSftp;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
+import com.jcraft.jsch.SftpException;
 
 
 import android.R.layout;
@@ -17,12 +27,15 @@ import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -46,6 +59,9 @@ public class Profile extends Activity {
     String gender = "";
     String msisdn = "";
     String picture = "";
+    ImageView img;
+    Bitmap bitmap;
+    String flag  = "false";
     
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -124,6 +140,7 @@ public class Profile extends Activity {
 				        runOnUiThread(new Runnable() {
 						     public void run() {
 						    	 display_profile();
+						    	 download_image();
 								}
 						});
 				        pdia.dismiss();
@@ -189,7 +206,7 @@ public class Profile extends Activity {
         intent.putExtra("msisdn", msisdn);
         
         
-        ImageView img = (ImageView) findViewById(R.id.profile_pic);
+        img = (ImageView) findViewById(R.id.profile_pic);
         if(gender.equals("F"))
         {
         	g.setText("Gender: Female");
@@ -204,8 +221,136 @@ public class Profile extends Activity {
     
     
     public void edit_profile(View view) throws MalformedURLException, JSONException {
-       startActivity(intent);
+    	intent.putExtra("flag", flag);
+        startActivity(intent);
     }
+    
+    public static void upload_image(File f)
+	{
+		Session session ;
+	     Channel channel = null;
+	    ChannelSftp sftp;
+	    JSch ssh = new JSch();
+	   try {
+	        session =ssh.getSession("chatspots", "chatspots.sytes.net");
+	        System.out.println("JSch JSch JSch Session created.");
+	        session.setPassword("P!CtuR3$");
+	        java.util.Properties config = new java.util.Properties(); 
+	        config.put("StrictHostKeyChecking", "no");
+	        session.setConfig(config);
+	        session.connect();
+	        System.out.println("JSch JSch Session connected.");
+	        System.out.println("Opening Channel.");
+	        channel = session.openChannel("sftp"); 
+	        channel.connect();
+	        sftp= (ChannelSftp)channel;
+	        //sftp.mkdir("dinaz");
+	        sftp.cd("/home/chatspots/dinaz");
+	        sftp.put(new FileInputStream(f), f.getName());
+
+	    }
+	    catch(Exception e){
+
+	    }
+	} 
+	
+	
+	public void download_image()
+	{
+//		String SFTPHOST = "chatspots.sytes.net";
+//		int    SFTPPORT = 22;
+//		String SFTPUSER = "chatspots";
+//		String SFTPPASS = "P!CtuR3$";
+//		String SFTPWORKINGDIR = "//home/chatspots/dinaz/";
+//		Session     session     = null;
+//		Channel     channel     = null;
+//		ChannelSftp channelSftp = null;
+//		try{
+//			JSch jsch = new JSch();
+//			session = jsch.getSession(SFTPUSER,SFTPHOST,SFTPPORT);
+//			session.setPassword(SFTPPASS);
+//			java.util.Properties config = new java.util.Properties();
+//			config.put("StrictHostKeyChecking", "no");
+//			session.setConfig(config);
+//			session.connect();
+//			channel = session.openChannel("sftp");
+//			channel.connect();
+//			channelSftp = (ChannelSftp)channel;
+//			channelSftp.cd(SFTPWORKINGDIR);
+//			BufferedInputStream bis = new BufferedInputStream(channelSftp.get("dina.png"));
+//			File newFile = new File("C:\\Documents and Settings\\dina.helal\\Desktop\\dina.png");
+//			OutputStream os = new FileOutputStream(newFile);
+//			BufferedOutputStream bos = new BufferedOutputStream(os);
+//			bis.close();
+//			bos.close();
+//		}catch(Exception ex){
+//
+//			ex.printStackTrace();
+//	
+//		}
+//
+//		 
+		
+		Session session = null;
+	    Channel channel = null;
+	    ChannelSftp channelSftp = null;
+	    boolean success = false;
+
+	    try {
+	        JSch jsch = new JSch();
+	        session =jsch.getSession("chatspots", "chatspots.sytes.net");
+	        System.out.println("JSch JSch JSch Session created.");
+	        session.setPassword("P!CtuR3$");
+	        
+	        session.setConfig("StrictHostKeyChecking", "no");
+	        session.connect();
+	        
+	        channel = session.openChannel("sftp");
+	        channel.connect();
+	        channelSftp = (ChannelSftp) channel;
+
+	        
+	        
+	        File storagePath = new File(Environment.getExternalStorageDirectory() + "/chatspots/cache/"); 
+	        storagePath.mkdirs(); 
+	        File myImage = new File(storagePath, userid + ".png");
+	        
+//	        try { 
+//	            FileOutputStream out = new FileOutputStream(myImage); 
+//	            profile_pic.compress(Bitmap.CompressFormat.PNG, 80, out); 
+//	            out.flush();    
+//	            out.close();
+//	        } catch (Exception e) { 
+//	            e.printStackTrace(); 
+//	        }   
+
+	        flag = "true";
+	        	        
+	        //String destPath = "C:\\Documents and Settings\\dina.helal\\Desktop\\dina.png";        
+	        channelSftp.cd("/home/chatspots/"+username+"/");
+	        channelSftp.get(userid+".png" , Environment.getExternalStorageDirectory() + "/chatspots/cache/"); 
+	        bitmap = BitmapFactory.decodeFile(Environment.getExternalStorageDirectory() + "/chatspots/cache/"+userid+".png");
+	        img.setImageBitmap(bitmap);
+
+	    } catch (JSchException ex) {
+	     
+	    } catch (SftpException ex) {
+
+	   }catch (Exception ex) {
+
+	    }finally {
+	        if (channelSftp.isConnected()) {
+	            try {
+	                session.disconnect();
+	                channel.disconnect();
+	                channelSftp.quit();
+	            } catch (Exception ioe) {
+
+	            }
+	        }
+	    }
+	   
+	}
     
 public void Delete_profile(View view) throws MalformedURLException, JSONException {
 	intent = new Intent(this, Main.class);    
