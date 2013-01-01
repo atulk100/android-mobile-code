@@ -1,8 +1,13 @@
 package com.example.myfirstapp;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -12,6 +17,12 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.jcraft.jsch.Channel;
+import com.jcraft.jsch.ChannelSftp;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.Session;
+import com.jcraft.jsch.SftpException;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
@@ -19,10 +30,12 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.DialogInterface.OnClickListener;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Bitmap.CompressFormat;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.provider.MediaStore.Images.Media;
 import android.util.Log;
@@ -48,8 +61,6 @@ android.view.View.OnClickListener{
 	String response = "";
 	Intent intent;
 	String userid;
-	private Button upload;
-	private Bitmap bitmap;
 	private ProgressDialog dialog;
 	private EditText caption;
 	private static final int GALLERY = 0;
@@ -57,6 +68,9 @@ android.view.View.OnClickListener{
 	Bitmap profile_pic;
 	ImageView profile_pic_view;
 	String byte_image = "";
+	String username = "";
+	InputStream in;
+	String img_path = "";
 	
 	@Override
     public void onCreate(Bundle savedInstanceState) {
@@ -64,7 +78,10 @@ android.view.View.OnClickListener{
         setContentView(R.layout.edit_profile);
         
         Intent intent = getIntent();
+        String flag = intent.getStringExtra("flag");
+        
         userid = intent.getStringExtra("userid");
+        username = intent.getStringExtra("username");
         
         EditText email = (EditText) findViewById(R.id.usermail);
         email.setText(intent.getStringExtra("usermail"));
@@ -82,18 +99,24 @@ android.view.View.OnClickListener{
         //pic.setText(intent.getStringExtra("fname"));
         
         ImageView img = (ImageView) findViewById(R.id.profile_pic);
-        
+        if(flag.equals("true"))
+        {
+        	Bitmap bitmap = BitmapFactory.decodeFile(Environment.getExternalStorageDirectory() + "/chatspots/cache/"+userid+".png");
+	        img.setImageBitmap(bitmap);
+        }
         String gender = intent.getStringExtra("gender");
         if(gender.equals("F"))
         {
         	RadioButton r = (RadioButton) findViewById(R.id.female);
-        	img.setImageResource(R.drawable.female);
+        	if(flag.equals("false"))
+        		img.setImageResource(R.drawable.female);
         	r.setChecked(true);
         }
         else
         {
         	RadioButton r = (RadioButton) findViewById(R.id.male);
-        	img.setImageResource(R.drawable.male);
+        	if(flag.equals("false"))
+	            img.setImageResource(R.drawable.male);
         	r.setChecked(true);
         }
         
@@ -278,9 +301,12 @@ android.view.View.OnClickListener{
         }	
         else
         {
+        	if(in != null )
+				upload_image(in);
+			
         socket.send(new JSONObject().put("Action", "UpdateUserProfile").put("Parameters", 
         		new JSONArray().put(new JSONObject().put("Password", md5(str_password)).put("UserEmail", str_email).put("UserID", userid+"")
-        				.put("UserFirstName", str_fname).put("UserLastName", str_lname).put("UserPicture", profile_pic)
+        				.put("UserFirstName", str_fname).put("UserLastName", str_lname).put("UserPicture", img_path)
         				.put("UserGender", ch_gender).put("UserBirthDate", str_bdate).put("UserMSISDN", str_msisdn))
         		));
         
@@ -314,7 +340,7 @@ android.view.View.OnClickListener{
 	
 	private Bitmap getImageFromURI(Uri data) {
 		try {
-			System.out.println("getImageFromURI");
+			in = getContentResolver().openInputStream(data);
 			return Media.getBitmap(getContentResolver(), data);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -333,6 +359,21 @@ android.view.View.OnClickListener{
 				System.out.println("onActivityResult");
 				profile_pic = getImageFromURI(data.getData());
 				System.out.println(profile_pic);
+				
+				File storagePath = new File(Environment.getExternalStorageDirectory() + "/chatspots/cache/"); 
+		        storagePath.mkdirs(); 
+		        File myImage = new File(storagePath, userid + ".png");
+
+		        try { 
+		            FileOutputStream out = new FileOutputStream(myImage); 
+		            profile_pic.compress(Bitmap.CompressFormat.PNG, 80, out); 
+		            out.flush();    
+		            out.close();
+		        } catch (Exception e) { 
+		            e.printStackTrace(); 
+		        }   
+
+				
 				//ByteArrayOutputStream stream = new ByteArrayOutputStream();
 				//profile_pic.compress(Bitmap.CompressFormat.PNG, 100, stream);
 //				byte[] byteArray = stream.toByteArray();
@@ -387,6 +428,44 @@ android.view.View.OnClickListener{
 		// TODO Auto-generated method stub
 		return false;
 	}
+	
+    public void upload_image(InputStream f)
+	{
+    	Session session ;
+	     Channel channel = null;
+	    ChannelSftp sftp;
+	    JSch ssh = new JSch();
+	   try {
+	        session =ssh.getSession("chatspots", "chatspots.sytes.net");
+	        System.out.println("JSch JSch JSch Session created.");
+	        session.setPassword("P!CtuR3$");
+	        java.util.Properties config = new java.util.Properties(); 
+	        config.put("StrictHostKeyChecking", "no");
+	        session.setConfig(config);
+	        session.connect();
+	        System.out.println("JSch JSch Session connected.");
+	        System.out.println("Opening Channel.");
+	        channel = session.openChannel("sftp"); 
+	        channel.connect();
+	        sftp= (ChannelSftp)channel;
+	        img_path = "/home/chatspots/"+username;
+	        try
+            {
+                sftp.cd("/home/chatspots/"+username);
+            }
+            catch ( SftpException e )
+            {
+                sftp.mkdir( username );
+                sftp.cd( "/home/chatspots/"+username );
+            }
+	        sftp.put(f, userid+".png");
+
+	    }
+	    catch(Exception e){
+
+	    }
+	}
+
 	
     public String md5(String s) {
         try {
