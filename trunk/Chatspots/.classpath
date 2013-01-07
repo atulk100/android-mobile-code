@@ -4,7 +4,7 @@
 	<classpathentry kind="src" path="gen"/>
 	<classpathentry kind="con" path="com.android.ide.eclipse.adt.ANDROID_FRAMEWORK"/>
 	<classpathentry kind="con" path="com.android.ide.eclipse.adt.LIBRARIES"/>
-	<classpathentry kind="lib" path="/Users/dinahelal/socket.io-java-client/jar/socketio.jar"/>
-	<classpathentry kind="lib" path="/Users/dinahelal/Documents/Programs/apache-commons-net/apache-commons-net.jar"/>
+	<classpathentry kind="lib" path="jsch-0.jar"/>
+	<classpathentry kind="lib" path="socketio.jar"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>
