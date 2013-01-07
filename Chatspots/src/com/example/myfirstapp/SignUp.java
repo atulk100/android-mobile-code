@@ -26,6 +26,7 @@ import com.jcraft.jsch.Session;
 
 import android.R.layout;
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
@@ -61,6 +62,11 @@ public class SignUp extends Activity {
         
         Pattern pattern = Patterns.EMAIL_ADDRESS;
         
+        final ProgressDialog pdia;
+    	pdia = ProgressDialog.show(SignUp.this, "",
+				"Loading.....", true);
+        
+        
         SocketIO socket=new SocketIO();
         try {
             socket = new SocketIO("http://chatspots.sytes.net:1333");
@@ -85,7 +91,15 @@ public class SignUp extends Activity {
 
             public void onError(SocketIOException socketIOException) {
                 System.out.println("an Error occured");
+                runOnUiThread(new Runnable() {
+				     public void run() {
 
+				    	 TextView err = (TextView) findViewById( R.id.sign_up_error);
+					        err.setText("Error contacting server! Please try again later");
+					        
+				     	}
+				});
+                pdia.dismiss();
                 socketIOException.printStackTrace();
             }
 
@@ -103,16 +117,17 @@ public class SignUp extends Activity {
 					response = ((JSONObject)args[0]).get("RequestStatus").toString();
 					if(response.equals("200"))
 					{
-						create_directory();
+						//create_directory();
 						runOnUiThread(new Runnable() {
 						     public void run() {
 
 						    	TextView err = (TextView) findViewById( R.id.sign_up_error );
 								System.out.println(err);
 							    err.setText(" ");
-															    }
+							    startActivity(intent);
+						     }
 						});
-						startActivity(intent);
+						
 					}
 					else if(response.equals("201"))
 					{
@@ -140,6 +155,7 @@ public class SignUp extends Activity {
 						});
 						
 					}
+					pdia.dismiss();
 				} catch (JSONException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -156,6 +172,7 @@ public class SignUp extends Activity {
 				        err.setText("Please fill all the fields!");
 				   }
 			});
+			pdia.dismiss();
         }
         else if(!str_password.equals(str_confirm_password))
         {
@@ -170,6 +187,7 @@ public class SignUp extends Activity {
 				     confirm_password.setText("");
 				   }
 			});
+        	pdia.dismiss();
         }
         else if(str_password.length()<6)
         {
@@ -184,6 +202,7 @@ public class SignUp extends Activity {
 				     confirm_password.setText("");
 				   }
 			});
+        	pdia.dismiss();
         }
         else if(!pattern.matcher(st_email).matches())
         {
@@ -193,6 +212,7 @@ public class SignUp extends Activity {
 				     err.setText("Invalid email address!");
 				   }
 			});
+        	pdia.dismiss();
         }
         else
         {

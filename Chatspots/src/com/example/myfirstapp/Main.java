@@ -12,6 +12,7 @@ import org.json.JSONObject;
 import io.socket.*;
 import android.R.layout;
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -38,6 +39,10 @@ public class Main extends Activity{
         EditText password = (EditText) findViewById(R.id.password);
         String str_password = password.getText().toString();
         
+        final ProgressDialog pdia;
+    	pdia = ProgressDialog.show(Main.this, "",
+				"Loading.....", true);
+        
         SocketIO socket=new SocketIO();
         try {
             socket = new SocketIO("http://chatspots.sytes.net:1333");
@@ -62,7 +67,15 @@ public class Main extends Activity{
 
             public void onError(SocketIOException socketIOException) {
                 System.out.println("an Error occured");
+                runOnUiThread(new Runnable() {
+				     public void run() {
 
+				    	 TextView err = (TextView) findViewById( R.id.login_error );
+					        err.setText("Error contacting server! Please try again later");
+					        
+				     	}
+				});
+                pdia.dismiss();
                 socketIOException.printStackTrace();
             }
 
@@ -82,7 +95,13 @@ public class Main extends Activity{
 					{
 						String userid = (((JSONObject)((JSONArray)((JSONObject)args[0]).get("Parameters")).get(0)).get("UserID")).toString();
 						intent.putExtra("userid", userid);
-						startActivity(intent);
+						runOnUiThread(new Runnable() {
+						     public void run() {
+						    	 intent.putExtra("file_name", "");
+						    	 startActivity(intent);
+						     }
+						});
+						
 					}
 					else
 					{
@@ -101,6 +120,7 @@ public class Main extends Activity{
 						});
 						
 					}
+					pdia.dismiss();
 				} catch (JSONException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -117,6 +137,7 @@ public class Main extends Activity{
 				        err.setText("Missing username");
 				   }
 			});
+			pdia.dismiss();
         }
         else if(str_password.equals(""))
         {
@@ -127,6 +148,7 @@ public class Main extends Activity{
 				        err.setText("Missing pasword");
 				   }
 			});
+			pdia.dismiss();
         }
         else
         {

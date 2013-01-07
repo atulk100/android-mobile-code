@@ -11,6 +11,7 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Vector;
 import java.util.regex.Pattern;
 
 import org.json.JSONArray;
@@ -22,16 +23,20 @@ import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
+import com.jcraft.jsch.ChannelSftp.LsEntry;
 
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.DialogInterface.OnClickListener;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Bitmap.CompressFormat;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -71,7 +76,8 @@ android.view.View.OnClickListener{
 	String username = "";
 	InputStream in;
 	String img_path = "";
-	
+	String file_name = "";
+	boolean flag = false;
 	@Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -101,7 +107,8 @@ android.view.View.OnClickListener{
         ImageView img = (ImageView) findViewById(R.id.profile_pic);
         if(flag.equals("true"))
         {
-        	Bitmap bitmap = BitmapFactory.decodeFile(Environment.getExternalStorageDirectory() + "/chatspots/cache/"+userid+".png");
+        	String file_name = intent.getStringExtra("file_name");
+        	Bitmap bitmap = BitmapFactory.decodeFile(Environment.getExternalStorageDirectory() + "/chatspots/cache/"+file_name);
 	        img.setImageBitmap(bitmap);
         }
         String gender = intent.getStringExtra("gender");
@@ -153,6 +160,10 @@ android.view.View.OnClickListener{
 
 	
 	public void update_profile(View view) throws MalformedURLException, JSONException {
+		final ProgressDialog pdia;
+    	pdia = ProgressDialog.show(EditProfile.this, "",
+				"Loading.....", true);
+        
     	intent = new Intent(this, Profile.class);
     	intent.putExtra("userid", userid);
     	Pattern pattern = Patterns.EMAIL_ADDRESS;
@@ -214,7 +225,15 @@ android.view.View.OnClickListener{
 
             public void onError(SocketIOException socketIOException) {
                 System.out.println("an Error occured");
+                runOnUiThread(new Runnable() {
+				     public void run() {
 
+				    	 TextView err = (TextView) findViewById( R.id.update_profile_error );
+					        err.setText("Error contacting server! Please try again later");
+					        
+				     	}
+				});
+               pdia.dismiss();
                 socketIOException.printStackTrace();
             }
 
@@ -232,7 +251,12 @@ android.view.View.OnClickListener{
 					response = ((JSONObject)args[0]).get("RequestStatus").toString();
 					if(response.equals("200"))
 					{
-						startActivity(intent);
+						runOnUiThread(new Runnable() {
+						     public void run() {
+						    	 intent.putExtra("file_name", file_name);
+						    	 startActivity(intent);
+							   }
+						});
 					}
 					else
 					{
@@ -245,6 +269,7 @@ android.view.View.OnClickListener{
 						});
 						
 					}
+					pdia.dismiss();
 				} catch (JSONException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -265,6 +290,7 @@ android.view.View.OnClickListener{
 				     confirm_password.setText("");
 				   }
 			});
+        	pdia.dismiss();
         }
         else if(str_confirm_password.equals("") || str_password.equals("") || str_fname.equals("") ||str_lname.equals(""))
         {
@@ -275,6 +301,7 @@ android.view.View.OnClickListener{
 				        err.setText("Please fill all the fields!");
 				   }
 			});
+        	pdia.dismiss();
         }
         else if(str_password.length()<6)
         {
@@ -289,6 +316,7 @@ android.view.View.OnClickListener{
 				     confirm_password.setText("");
 				   }
 			});
+        	pdia.dismiss();
         }
         else if(!pattern.matcher(str_email).matches())
         {
@@ -298,17 +326,23 @@ android.view.View.OnClickListener{
 				     err.setText("Invalid email address!");
 				   }
 			});
+        	pdia.dismiss();
         }	
         else
         {
-        	if(in != null )
-				upload_image(in);
-			
-        socket.send(new JSONObject().put("Action", "UpdateUserProfile").put("Parameters", 
-        		new JSONArray().put(new JSONObject().put("Password", md5(str_password)).put("UserEmail", str_email).put("UserID", userid+"")
-        				.put("UserFirstName", str_fname).put("UserLastName", str_lname).put("UserPicture", img_path)
-        				.put("UserGender", ch_gender).put("UserBirthDate", str_bdate).put("UserMSISDN", str_msisdn))
-        		));
+        	runOnUiThread(new Runnable() {
+			     public void run() {
+			    	 if(flag)
+							upload_image(in);
+						
+				   }
+			});
+
+	        socket.send(new JSONObject().put("Action", "UpdateUserProfile").put("Parameters", 
+	        		new JSONArray().put(new JSONObject().put("Password", md5(str_password)).put("UserEmail", str_email).put("UserID", userid+"")
+	        				.put("UserFirstName", str_fname).put("UserLastName", str_lname).put("UserPicture", img_path)
+	        				.put("UserGender", ch_gender).put("UserBirthDate", str_bdate).put("UserMSISDN", str_msisdn))
+	        		));
         
         }
     }
@@ -340,6 +374,7 @@ android.view.View.OnClickListener{
 	
 	private Bitmap getImageFromURI(Uri data) {
 		try {
+			flag = true;
 			in = getContentResolver().openInputStream(data);
 			return Media.getBitmap(getContentResolver(), data);
 		} catch (FileNotFoundException e) {
@@ -362,7 +397,8 @@ android.view.View.OnClickListener{
 				
 				File storagePath = new File(Environment.getExternalStorageDirectory() + "/chatspots/cache/"); 
 		        storagePath.mkdirs(); 
-		        File myImage = new File(storagePath, userid + ".png");
+		        file_name = Long.toString(System.currentTimeMillis()) + ".png";
+		        File myImage = new File(storagePath, file_name);
 
 		        try { 
 		            FileOutputStream out = new FileOutputStream(myImage); 
@@ -458,8 +494,31 @@ android.view.View.OnClickListener{
                 sftp.mkdir( username );
                 sftp.cd( "/home/chatspots/"+username );
             }
-	        sftp.put(f, userid+".png");
+	        Vector<LsEntry> list = sftp.ls("*.png");
+	        if(list.size() > 0)
+	        {
+	        	for(LsEntry l:list)
+	        		sftp.rm(l.getFilename());
+	        }
+	        sftp.put(f, file_name);
+	        
+	        
+	        File file = new File(Environment.getExternalStorageDirectory(), file_name );
+	        Drawable d = Drawable.createFromStream(in,file_name);
+	        Bitmap bitmap = ((BitmapDrawable)d).getBitmap();
+	        FileOutputStream outStream;
+	        try {
 
+	            outStream = new FileOutputStream(file);
+	            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outStream); 
+	            /* 100 to keep full quality of the image */
+	            outStream.flush();
+	            outStream.close();
+	        } catch (FileNotFoundException e) {
+	            e.printStackTrace();
+	        } catch (IOException e) {
+	            e.printStackTrace();
+	        }
 	    }
 	    catch(Exception e){
 
