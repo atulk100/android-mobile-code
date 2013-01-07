@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.net.MalformedURLException;
+import java.util.Vector;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -16,6 +17,7 @@ import org.json.JSONObject;
 
 import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelSftp;
+import com.jcraft.jsch.ChannelSftp.LsEntry;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
@@ -62,13 +64,14 @@ public class Profile extends Activity {
     ImageView img;
     Bitmap bitmap;
     String flag  = "false";
-    
+    String file_name = "";
+    Intent intent_old;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.profile);
         // Get the message from the intent
-        Intent intent_old = getIntent();
+        intent_old = getIntent();
         userid = intent_old.getStringExtra("userid");
         
         intent = new Intent(this, EditProfile.class);
@@ -106,7 +109,7 @@ public class Profile extends Activity {
 
             public void onError(SocketIOException socketIOException) {
                 System.out.println("an Error occured");
-
+                pdia.dismiss();
                 socketIOException.printStackTrace();
             }
 
@@ -139,11 +142,19 @@ public class Profile extends Activity {
 				        //picture = (((JSONObject)((JSONArray)((JSONObject)args[0]).get("Parameters")).get(0)).get("UserPicture")).toString();
 				        runOnUiThread(new Runnable() {
 						     public void run() {
+						    	 System.out.println("runnable");
 						    	 display_profile();
-						    	 download_image();
+						    	 String file_name_intent = intent_old.getStringExtra("file_name");
+							     if(file_name_intent.equals(""))
+							    	 download_image();
+							     else
+							     {
+							    	 bitmap = BitmapFactory.decodeFile(Environment.getExternalStorageDirectory() + "/chatspots/cache/"+file_name_intent);
+								     img.setImageBitmap(bitmap);
+							     }
 								}
 						});
-				        pdia.dismiss();
+				        
 				        
 					}
 					else
@@ -157,6 +168,7 @@ public class Profile extends Activity {
 						});
 						
 					}
+					pdia.dismiss();
 				} catch (JSONException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -178,6 +190,7 @@ public class Profile extends Activity {
     
     public void display_profile()
     {
+    	System.out.println("display_profile start");
     	TextView u = (TextView) findViewById( R.id.welcome );
         u.setText("Welcome "+username+"!");
         intent.putExtra("username", username);
@@ -217,6 +230,7 @@ public class Profile extends Activity {
         	g.setText("Gender: Male");
         	img.setImageResource(R.drawable.male);
         }
+        System.out.println("display_profile end");
     }
     
     
@@ -257,6 +271,7 @@ public class Profile extends Activity {
 	
 	public void download_image()
 	{
+		System.out.println("download_image start");
 //		String SFTPHOST = "chatspots.sytes.net";
 //		int    SFTPPORT = 22;
 //		String SFTPUSER = "chatspots";
@@ -313,8 +328,7 @@ public class Profile extends Activity {
 	        
 	        File storagePath = new File(Environment.getExternalStorageDirectory() + "/chatspots/cache/"); 
 	        storagePath.mkdirs(); 
-	        File myImage = new File(storagePath, userid + ".png");
-	        
+	       
 //	        try { 
 //	            FileOutputStream out = new FileOutputStream(myImage); 
 //	            profile_pic.compress(Bitmap.CompressFormat.PNG, 80, out); 
@@ -324,13 +338,33 @@ public class Profile extends Activity {
 //	            e.printStackTrace(); 
 //	        }   
 
-	        flag = "true";
+	        
 	        	        
 	        //String destPath = "C:\\Documents and Settings\\dina.helal\\Desktop\\dina.png";        
-	        channelSftp.cd("/home/chatspots/"+username+"/");
-	        channelSftp.get(userid+".png" , Environment.getExternalStorageDirectory() + "/chatspots/cache/"); 
-	        bitmap = BitmapFactory.decodeFile(Environment.getExternalStorageDirectory() + "/chatspots/cache/"+userid+".png");
-	        img.setImageBitmap(bitmap);
+	        try
+            {
+	        	channelSftp.cd("/home/chatspots/"+username+"/");
+		    }
+            catch ( SftpException e )
+            {
+            	channelSftp.mkdir( username );
+                channelSftp.cd( "/home/chatspots/"+username );
+            }
+		        Vector<LsEntry> list = channelSftp.ls("*.png");
+		        if(list.size() > 0)
+		        {
+		        	file_name = list.get(0).getFilename();
+		        	intent.putExtra("file_name", file_name);
+		        	File file = new File(Environment.getExternalStorageDirectory() + "/chatspots/cache/", file_name );
+		        	System.out.println("filename"+file_name);
+		        	if (!file.exists()) {
+		        		System.out.println("downloading file......");
+		        		channelSftp.get(file_name , Environment.getExternalStorageDirectory() + "/chatspots/cache/"); 
+				    }
+		        	bitmap = BitmapFactory.decodeFile(Environment.getExternalStorageDirectory() + "/chatspots/cache/"+file_name);
+			        img.setImageBitmap(bitmap);	
+		        	flag = "true";
+		        }
 
 	    } catch (JSchException ex) {
 	     
@@ -339,6 +373,7 @@ public class Profile extends Activity {
 	   }catch (Exception ex) {
 
 	    }finally {
+	    	System.out.println("download_image end");
 	        if (channelSftp.isConnected()) {
 	            try {
 	                session.disconnect();
